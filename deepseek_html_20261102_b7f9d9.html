@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HomeBase — ER-модель и схема глобалов</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem("hb-theme") || "system";
+        var dark = mode === "dark" ||
+          (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        document.documentElement.dataset.themeMode = mode;
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --hb-accent: #4f46e5;
+      --hb-bg: #ffffff;
+      --hb-bg-soft: #f3f4f6;
+      --hb-bg-code: #f8fafc;
+      --hb-border: #e5e7eb;
+      --hb-text: #111827;
+      --hb-text-muted: #6b7280;
+      --hb-icon: #374151;
+
+      --hb-income: #047857;      --hb-income-bg: #d1fae5;
+      --hb-expense: #b91c1c;     --hb-expense-bg: #fee2e2;
+      --hb-warn: #b45309;        --hb-warn-bg: #fef3c7;
+      --hb-danger: #b91c1c;      --hb-danger-bg: #fee2e2;
+      --hb-info: #1d4ed8;        --hb-info-bg: #dbeafe;
+
+      --hb-r-sm: 6px;
+      --hb-r-md: 8px;
+      --hb-r-lg: 10px;
+      --hb-r-xl: 12px;
+      --hb-r-pill: 999px;
+      --hb-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    }
+    [data-theme="dark"] {
+      --hb-accent: #a5b4fc;
+      --hb-bg: #111827;
+      --hb-bg-soft: #1f2937;
+      --hb-bg-code: #0f172a;
+      --hb-border: #374151;
+      --hb-text: #f9fafb;
+      --hb-text-muted: #9ca3af;
+      --hb-icon: #e5e7eb;
+
+      --hb-income: #6ee7b7;      --hb-income-bg: #064e3b;
+      --hb-expense: #fca5a5;     --hb-expense-bg: #7f1d1d;
+      --hb-warn: #fcd34d;        --hb-warn-bg: #78350f;
+      --hb-danger: #fca5a5;      --hb-danger-bg: #7f1d1d;
+      --hb-info: #93c5fd;        --hb-info-bg: #1e3a8a;
+
+      --hb-shadow-md: 0 4px 12px rgba(0,0,0,.5);
+    }
+
+    body {
+      margin: 0; padding: 0;
+      color: var(--hb-text); background: var(--hb-bg);
+      font-family: var(--pico-font-family, system-ui, sans-serif);
+      font-size: .93rem; line-height: 1.55;
+    }
+
+    .doc-layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100dvh; }
+
+    /* TOC */
+    .doc-toc {
+      position: sticky; top: 0; align-self: start;
+      height: 100dvh; overflow-y: auto;
+      padding: 1.5rem 1rem;
+      border-right: 1px solid var(--hb-border);
+      background: var(--hb-bg);
+    }
+    .doc-toc h1 { font-size: 1.05rem; margin: 0 0 .25rem; }
+    .doc-toc .doc-sub { font-size: .8rem; color: var(--hb-text-muted); margin: 0 0 1rem; }
+    .doc-toc nav { display: flex; flex-direction: column; gap: 2px; }
+    .doc-toc nav a {
+      display: block; padding: .3rem .5rem; border-radius: var(--hb-r-md);
+      font-size: .83rem; color: var(--hb-text); text-decoration: none;
+    }
+    .doc-toc nav a:hover { background: var(--hb-bg-soft); }
+    .doc-toc nav .group {
+      font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+      color: var(--hb-text-muted); font-weight: 600;
+      padding: .75rem .5rem .25rem;
+    }
+
+    /* Content */
+    .doc-main { padding: 2rem 2.5rem 4rem; max-width: 1180px; }
+    .doc-section { margin-bottom: 3rem; scroll-margin-top: 1rem; }
+    .doc-section > h2 {
+      font-size: 1.4rem; margin: 0 0 .25rem;
+      padding-bottom: .5rem; border-bottom: 1px solid var(--hb-border);
+    }
+    .doc-section > p.lead {
+      margin: 0 0 1.25rem; color: var(--hb-text-muted); font-size: .88rem;
+    }
+    .doc-subsection { margin: 1.5rem 0; }
+    .doc-subsection > h3 {
+      font-size: 1.1rem; margin: 0 0 .5rem;
+    }
+    .doc-subsection > p {
+      margin: 0 0 .75rem; font-size: .86rem; color: var(--hb-text-muted);
+    }
+
+    h4 { font-size: .95rem; margin: 1rem 0 .5rem; }
+
+    /* Таблицы сущностей */
+    .doc-entity {
+      border: 1px solid var(--hb-border);
+      border-radius: var(--hb-r-xl);
+      background: var(--hb-bg);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .doc-entity-head {
+      padding: .75rem 1rem;
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+      border-bottom: 1px solid var(--hb-border);
+      background: var(--hb-bg-soft);
+    }
+    .doc-entity-head strong {
+      font-size: .98rem; font-weight: 700;
+    }
+    .doc-entity-head code {
+      font-family: ui-monospace, monospace; font-size: .78rem;
+      color: var(--hb-text-muted); background: transparent; border: 0; padding: 0;
+    }
+    .doc-entity-head .pill {
+      margin-left: auto; font-size: .7rem; font-weight: 600;
+      padding: .1rem .5rem; border-radius: var(--hb-r-pill);
+      background: var(--hb-info-bg); color: var(--hb-info);
+    }
+    .doc-entity-head .pill[data-kind="ref"] { background: var(--hb-warn-bg); color: var(--hb-warn); }
+
+    .doc-entity table {
+      width: 100%; border-collapse: collapse; font-size: .85rem;
+    }
+    .doc-entity table thead th {
+      text-align: left; font-size: .7rem; text-transform: uppercase;
+      letter-spacing: .04em; font-weight: 600;
+      padding: .5rem .85rem;
+      background: var(--hb-bg-soft);
+      color: var(--hb-text-muted);
+      border-bottom: 1px solid var(--hb-border);
+    }
+    .doc-entity table tbody td {
+      padding: .5rem .85rem;
+      border-bottom: 1px solid var(--hb-border);
+      vertical-align: top;
+    }
+    .doc-entity table tbody tr:last-child td { border-bottom: 0; }
+    .doc-entity table tbody tr:hover { background: var(--hb-bg-soft); }
+    .doc-entity table code {
+      font-family: ui-monospace, monospace; font-size: .82em;
+      background: var(--hb-bg-code); border: 1px solid var(--hb-border);
+      padding: .05rem .3rem; border-radius: 4px;
+    }
+    .doc-entity table .req { color: var(--hb-danger); font-weight: 700; }
+    .doc-entity table .type {
+      font-family: ui-monospace, monospace; font-size: .78em;
+      color: var(--hb-text-muted);
+    }
+
+    /* Схема глобалов */
+    .doc-global {
+      font-family: ui-monospace, monospace; font-size: .82rem;
+      background: var(--hb-bg-code); border: 1px solid var(--hb-border);
+      border-radius: var(--hb-r-md);
+      padding: .85rem 1rem;
+      overflow-x: auto; white-space: pre;
+      line-height: 1.5;
+      color: var(--hb-text);
+      margin: .5rem 0;
+    }
+    .doc-global .key { color: var(--hb-accent); }
+    .doc-global .val { color: var(--hb-text-muted); }
+    .doc-global .cmt { color: var(--hb-text-muted); font-style: italic; }
+
+    /* Mermaid */
+    .mermaid-wrap {
+      border: 1px solid var(--hb-border);
+      border-radius: var(--hb-r-xl);
+      background: var(--hb-bg);
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .mermaid-wrap .mermaid { text-align: center; min-height: 200px; }
+
+    /* Бейджи семантики */
+    .badge {
+      display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .72rem; font-weight: 600;
+      padding: .1rem .5rem; border-radius: var(--hb-r-pill);
+    }
+    .badge[data-kind="income"]  { color: var(--hb-income);  background: var(--hb-income-bg); }
+    .badge[data-kind="expense"] { color: var(--hb-expense); background: var(--hb-expense-bg); }
+    .badge[data-kind="warn"]    { color: var(--hb-warn);    background: var(--hb-warn-bg); }
+    .badge[data-kind="info"]    { color: var(--hb-info);    background: var(--hb-info-bg); }
+
+    /* Callout */
+    .callout {
+      display: flex; gap: .6rem; align-items: flex-start;
+      padding: .75rem 1rem; border-radius: var(--hb-r-lg);
+      border: 1px solid var(--hb-border); background: var(--hb-bg-soft);
+      font-size: .85rem;
+      margin: .75rem 0;
+    }
+    .callout svg { flex: none; margin-top: .15rem; }
+    .callout[data-kind="info"]  { background: var(--hb-info-bg);  border-color: var(--hb-info); }
+    .callout[data-kind="warn"]  { background: var(--hb-warn-bg);  border-color: var(--hb-warn); }
+    .callout[data-kind="danger"]{ background: var(--hb-danger-bg);border-color: var(--hb-danger); }
+    .callout strong { display: block; margin-bottom: .15rem; }
+    .callout[data-kind] { color: var(--hb-text); }
+
+    /* Открытые вопросы */
+    .doc-questions {
+      width: 100%; border-collapse: collapse; font-size: .86rem;
+      border: 1px solid var(--hb-border); border-radius: var(--hb-r-xl);
+      overflow: hidden;
+    }
+    .doc-questions thead th {
+      text-align: left; font-size: .72rem; text-transform: uppercase;
+      letter-spacing: .04em; font-weight: 600;
+      padding: .55rem .9rem;
+      background: var(--hb-bg-soft);
+      color: var(--hb-text-muted);
+      border-bottom: 1px solid var(--hb-border);
+    }
+    .doc-questions tbody td {
+      padding: .55rem .9rem;
+      border-bottom: 1px solid var(--hb-border);
+      vertical-align: top;
+    }
+    .doc-questions tbody tr:last-child td { border-bottom: 0; }
+
+    /* Тема-кнопка */
+    .doc-theme-toggle {
+      position: fixed; top: 1rem; right: 1rem; z-index: 50;
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .4rem .75rem; font-size: .82rem;
+      border: 1px solid var(--hb-border); border-radius: var(--hb-r-md);
+      background: var(--hb-bg); color: var(--hb-text);
+      box-shadow: var(--hb-shadow-md); cursor: pointer;
+      font-family: inherit;
+    }
+    .doc-theme-toggle:hover { background: var(--hb-bg-soft); }
+
+    /* Адаптив */
+    @media (max-width: 900px) {
+      .doc-layout { grid-template-columns: 1fr; }
+      .doc-toc {
+        position: static; height: auto;
+        border-right: 0; border-bottom: 1px solid var(--hb-border);
+        padding: 1rem;
+      }
+      .doc-toc nav { flex-direction: row; flex-wrap: wrap; }
+      .doc-toc nav .group { width: 100%; }
+      .doc-main { padding: 1rem; }
+      .doc-theme-toggle { position: static; margin: 0 0 .5rem; }
+      .doc-entity table { font-size: .8rem; }
+      .doc-entity table thead th,
+      .doc-entity table tbody td { padding: .4rem .55rem; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="doc-theme-toggle" id="docThemeBtn" aria-label="Переключить тему">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+  <span id="docThemeLabel">Тёмная тема</span>
+</button>
+
+<div class="doc-layout">
+
+  <!-- =============== TOC =============== -->
+  <aside class="doc-toc">
+    <h1>HomeBase — ER и глобалы</h1>
+    <p class="doc-sub">Версия 0.1 · draft · для ТЗ</p>
+
+    <nav>
+      <div class="group">Обзор</div>
+      <a href="#overview">Назначение и принципы</a>
+      <a href="#diagram">ER-диаграмма</a>
+
+      <div class="group">Сущности</div>
+      <a href="#space">Space, Member, Invite</a>
+      <a href="#catalog">Project, Task, Note</a>
+      <a href="#event">Event</a>
+      <a href="#chat">Channel, Message</a>
+      <a href="#file">File</a>
+
+      <div class="group">Финансы</div>
+      <a href="#account">Account, Category, Transaction</a>
+      <a href="#recurring">Recurring</a>
+      <a href="#loan">Loan, LoanRateChange, EarlyPayment</a>
+      <a href="#budget">Budget</a>
+
+      <div class="group">Инфраструктура</div>
+      <a href="#audit">Audit</a>
+      <a href="#globals">Схема глобалов MUMPS</a>
+      <a href="#api">API-эндпоинты</a>
+      <a href="#integrity">Правила целостности</a>
+      <a href="#questions">Открытые вопросы</a>
+    </nav>
+  </aside>
+
+  <!-- =============== CONTENT =============== -->
+  <main class="doc-main">
+
+    <!-- ===== ОБЗОР ===== -->
+    <section class="doc-section" id="overview">
+      <h2>Назначение и принципы</h2>
+      <p class="lead">Документ описывает модель данных HomeBase для MUMPS и API-слой поверх неё. Цель — дать разработчику единый источник истины по сущностям, полям, связям и физической схеме глобалов.</p>
+
+      <h3>Принципы</h3>
+      <ul style="font-size:.88rem; line-height:1.7">
+        <li><strong>Пространство — корень изоляции.</strong> Все сущности принадлежат пространству через <code>spaceId</code>. Кросс-пространственных запросов нет, кроме агрегированного календаря (§4.8) — и то через явный список spaceId пользователя.</li>
+        <li><strong>Плоский JSON на API, дерево — в глобалах.</strong> Фронтенд не знает о структуре глобалов. API отдаёт и принимает плоские объекты, бэкенд раскладывает по дереву.</li>
+        <li><strong>Деньги — в копейках.</strong> Все суммы хранятся как целые числа в минимальной единице валюты (копейки, центы). Валюта — отдельное поле, для MVP одна на пространство.</li>
+        <li><strong>Время — в UTC.</strong> Даты и время хранятся в UTC ISO 8601. Отображение — в часовом поясе пространства (поле <code>timezone</code>).</li>
+        <li><strong>Транзакционность финансов.</strong> Изменение баланса счёта и запись транзакции — в одной транзакции MUMPS (<code>TSTART</code>/<code>TCOMMIT</code>). Иначе баланс разъедется.</li>
+        <li><strong>Аудит — отдельно.</strong> Изменения финансов, задач и настроек пишутся в <code>^SPACE(id,"audit")</code>, чтобы не смешивать с основными данными.</li>
+        <li><strong>Мягкое удаление.</strong> Пользовательские сущности (задачи, заметки, транзакции) не удаляются физически, а помечаются <code>deletedAt</code>. Жёсткое удаление — только для пространства целиком, по явному запросу.</li>
+      </ul>
+
+      <h3>Соглашения по именованию</h3>
+      <ul style="font-size:.88rem; line-height:1.7">
+        <li>Глобалы — заглавными: <code>^SPACE</code>, <code>^USER</code>, <code>^SPACE_BY_USER</code>.</li>
+        <li>Поля внутри узлов — строчными: <code>"name"</code>, <code>"createdAt"</code>, <code>"assigneeId"</code>.</li>
+        <li>ID — строки (UUID v4 или монотонный счётчик с префиксом). Для MUMPS удобнее строки, чтобы не зависеть от счётчика.</li>
+        <li>Даты — ISO 8601 в UTC: <code>"2025-03-28T10:00:00Z"</code>.</li>
+      </ul>
+    </section>
+
+    <!-- ===== ER-ДИАГРАММА ===== -->
+    <section class="doc-section" id="diagram">
+      <h2>ER-диаграмма</h2>
+      <p class="lead">Связи между сущностями. Ромб — сущность, линия — связь с кардинальностью (1:N, N:M). Диаграмма рендерится Mermaid, если подключён CDN; иначе — текстовая схема ниже.</p>
+
+      <div class="mermaid-wrap">
+        <div class="mermaid">
+erDiagram
+    USER ||--o{ MEMBER : "состоит в"
+    SPACE ||--o{ MEMBER : "имеет участников"
+    SPACE ||--o{ INVITE : "приглашает"
+    SPACE ||--o{ PROJECT : "содержит"
+    SPACE ||--o{ TASK : "содержит"
+    SPACE ||--o{ NOTE : "содержит"
+    SPACE ||--o{ EVENT : "содержит"
+    SPACE ||--o{ CHANNEL : "содержит"
+    SPACE ||--o{ MESSAGE : "содержит"
+    SPACE ||--o{ FILE : "содержит"
+
+    SPACE ||--o{ ACCOUNT : "имеет счета"
+    SPACE ||--o{ CATEGORY : "имеет категории"
+    SPACE ||--o{ TXN : "имеет транзакции"
+    SPACE ||--o{ RECURRING : "имеет периодические"
+    SPACE ||--o{ LOAN : "имеет кредиты"
+    SPACE ||--o{ BUDGET : "имеет бюджет"
+
+    PROJECT ||--o{ TASK : "группирует"
+    PROJECT ||--o{ NOTE : "группирует"
+    TASK ||--o{ TASK : "подзадачи"
+    TASK ||--o{ NOTE : "привязка"
+    TASK ||--o{ EVENT : "событие задачи"
+
+    ACCOUNT ||--o{ TXN : "источник"
+    ACCOUNT ||--o{ RECURRING : "счёт операции"
+    CATEGORY ||--o{ TXN : "категория"
+    CATEGORY ||--o{ RECURRING : "категория"
+    CATEGORY ||--o{ BUDGET : "план по категории"
+
+    LOAN ||--o{ RECURRING : "платёж по кредиту"
+    LOAN ||--o{ LOAN_RATE_CHANGE : "изменения ставки"
+    LOAN ||--o{ EARLY_PAYMENT : "досрочные"
+
+    RECURRING ||--o{ TXN : "создаёт транзакции"
+    USER ||--o{ AUDIT : "автор изменений"
+        </div>
+      </div>
+
+      <p style="font-size:.85rem; color:var(--hb-text-muted); margin-top:.75rem">
+        Mermaid загружается с CDN. Если диаграмма пустая — откройте документ при доступе в интернет или используйте текстовую схему ниже.
+      </p>
+
+      <h3>Текстовая схема связей</h3>
+      <div class="doc-global">USER 1─N MEMBER N─1 SPACE           <span class="cmt"># пользователь состоит в пространствах</span>
+SPACE 1─N INVITE                     <span class="cmt"># приглашения в пространство</span>
+SPACE 1─N PROJECT 1─N TASK 1─N TASK  <span class="cmt"># каталоги и подзадачи</span>
+SPACE 1─N NOTE                       <span class="cmt"># заметки (могут ссылаться на TASK/PROJECT)</span>
+SPACE 1─N EVENT                      <span class="cmt"># события: task | meeting | reminder</span>
+SPACE 1─N CHANNEL 1─N MESSAGE        <span class="cmt"># чат</span>
+SPACE 1─N FILE                       <span class="cmt"># метаданные файлов, бинарники вне</span>
+
+SPACE 1─N ACCOUNT 1─N TXN            <span class="cmt"># счета и транзакции</span>
+SPACE 1─N CATEGORY 1─N TXN           <span class="cmt"># категории транзакций</span>
+SPACE 1─N RECURRING                  <span class="cmt"># периодические операции</span>
+SPACE 1─N LOAN                       <span class="cmt"># кредиты</span>
+SPACE 1─N BUDGET                     <span class="cmt"># планы по категориям</span>
+
+LOAN 1─N RECURRING                   <span class="cmt"># платёж по кредиту = Recurring с loanId</span>
+LOAN 1─N LOAN_RATE_CHANGE            <span class="cmt"># история изменения ставки</span>
+LOAN 1─N EARLY_PAYMENT               <span class="cmt"># досрочные погашения</span>
+RECURRING 1─N TXN                    <span class="cmt"># автосозданные транзакции</span>
+USER 1─N AUDIT                       <span class="cmt"># аудит изменений</span></div>
+    </section>
+
+    <!-- ===== SPACE, MEMBER, INVITE ===== -->
+    <section class="doc-section" id="space">
+      <h2>Пространства и участники</h2>
+      <p class="lead">Корень изоляции. Пользователь может быть в нескольких пространствах с разными ролями. Владелец — один на пространство.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Space</strong><code>^SPACE(id)</code>
+          <span class="pill">корень</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td>Уникальный ID пространства</td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td>Название («Семья», «Личное»)</td></tr>
+            <tr><td><code>kind</code></td><td class="type">enum</td><td class="req">✓</td><td><code>personal</code> | <code>family</code> | <code>friends</code> | <code>custom</code></td></tr>
+            <tr><td><code>ownerId</code></td><td class="type">string</td><td class="req">✓</td><td>ID владельца (из <code>^USER</code>)</td></tr>
+            <tr><td><code>currency</code></td><td class="type">string</td><td class="req">✓</td><td>ISO 4217, для MVP одна на пространство</td></tr>
+            <tr><td><code>timezone</code></td><td class="type">string</td><td class="req">✓</td><td>IANA TZ, влияет на напоминания</td></tr>
+            <tr><td><code>weekStart</code></td><td class="type">enum</td><td class="req">✓</td><td><code>mon</code> | <code>sun</code></td></tr>
+            <tr><td><code>description</code></td><td class="type">string</td><td></td><td>Короткое описание</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td>UTC ISO 8601</td></tr>
+            <tr><td><code>archivedAt</code></td><td class="type">datetime</td><td></td><td>Если архив — не показывается в списке</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Member</strong><code>^SPACE(spaceId,"members",userId)</code>
+          <span class="pill">связь</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>userId</code></td><td class="type">string</td><td class="req">✓</td><td>Ключ узла</td></tr>
+            <tr><td><code>role</code></td><td class="type">enum</td><td class="req">✓</td><td><code>owner</code> | <code>adult</code> | <code>child</code> | <code>guest</code></td></tr>
+            <tr><td><code>joinedAt</code></td><td class="type">datetime</td><td class="req">✓</td><td>Когда присоединился</td></tr>
+            <tr><td><code>invitedBy</code></td><td class="type">string</td><td></td><td>Кто пригласил</td></tr>
+            <tr><td><code>perms</code></td><td class="type">object</td><td></td><td>Переопределения прав поверх роли (опционально)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Invite</strong><code>^INVITE(token)</code>
+          <span class="pill">ссылка</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>token</code></td><td class="type">string</td><td class="req">✓</td><td>Ключ узла, случайная строка</td></tr>
+            <tr><td><code>spaceId</code></td><td class="type">string</td><td class="req">✓</td><td>Куда приглашение</td></tr>
+            <tr><td><code>role</code></td><td class="type">enum</td><td class="req">✓</td><td>Роль по умолчанию</td></tr>
+            <tr><td><code>createdBy</code></td><td class="type">string</td><td class="req">✓</td><td>Кто создал</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>expiresAt</code></td><td class="type">datetime</td><td></td><td>Пусто — бессрочно</td></tr>
+            <tr><td><code>revokedAt</code></td><td class="type">datetime</td><td></td><td>Если отозвано</td></tr>
+            <tr><td><code>usedBy</code></td><td class="type">array</td><td></td><td>Список userId, кто использовал (если многоразовый)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout" data-kind="warn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><strong>Владелец ровно один.</strong> Смена владельца — транзакция: старый <code>role</code> → <code>adult</code>, новый → <code>owner</code>, <code>space.ownerId</code> → новый. Всё в одной транзакции MUMPS.</div>
+      </div>
+    </section>
+
+    <!-- ===== CATALOG, TASK, NOTE ===== -->
+    <section class="doc-section" id="catalog">
+      <h2>Каталоги, задачи, заметки</h2>
+      <p class="lead">Каталоги (проекты) — дерево внутри пространства. Задачи и заметки могут принадлежать каталогу или быть «в корне». Подзадачи — через <code>parentTaskId</code>.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Project</strong><code>^SPACE(spaceId,"projects",projectId)</code>
+          <span class="pill">дерево</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>parentId</code></td><td class="type">string</td><td></td><td>Родительский каталог, null — корень</td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>color</code></td><td class="type">string</td><td></td><td>HEX для метки в UI</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Task</strong><code>^SPACE(spaceId,"tasks",taskId)</code>
+          <span class="pill">основное</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>projectId</code></td><td class="type">string</td><td></td><td>Каталог, null — корень</td></tr>
+            <tr><td><code>parentTaskId</code></td><td class="type">string</td><td></td><td>Для подзадач</td></tr>
+            <tr><td><code>title</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>description</code></td><td class="type">markdown</td><td></td><td>GFM</td></tr>
+            <tr><td><code>status</code></td><td class="type">enum</td><td class="req">✓</td><td><code>todo</code> | <code>progress</code> | <code>blocked</code> | <code>done</code></td></tr>
+            <tr><td><code>priority</code></td><td class="type">enum</td><td class="req">✓</td><td><code>low</code> | <code>normal</code> | <code>high</code> | <code>urgent</code></td></tr>
+            <tr><td><code>assigneeId</code></td><td class="type">string</td><td></td><td>userId, null — не назначено</td></tr>
+            <tr><td><code>authorId</code></td><td class="type">string</td><td class="req">✓</td><td>Кто создал</td></tr>
+            <tr><td><code>dueDate</code></td><td class="type">date</td><td></td><td>Без времени, срок</td></tr>
+            <tr><td><code>tags</code></td><td class="type">array</td><td></td><td>Строки</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>updatedAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>completedAt</code></td><td class="type">datetime</td><td></td><td>Когда перешла в done</td></tr>
+            <tr><td><code>deletedAt</code></td><td class="type">datetime</td><td></td><td>Soft-delete</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Note</strong><code>^SPACE(spaceId,"notes",noteId)</code>
+          <span class="pill">контент</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>projectId</code></td><td class="type">string</td><td></td><td>Каталог, null — корень</td></tr>
+            <tr><td><code>taskId</code></td><td class="type">string</td><td></td><td>Привязка к задаче</td></tr>
+            <tr><td><code>title</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>body</code></td><td class="type">markdown</td><td class="req">✓</td><td>GFM</td></tr>
+            <tr><td><code>tags</code></td><td class="type">array</td><td></td><td></td></tr>
+            <tr><td><code>authorId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>updatedAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>deletedAt</code></td><td class="type">datetime</td><td></td><td>Soft-delete</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout" data-kind="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>Прогресс родительской задачи</strong> не хранится, а считается на лету: <code>done_count / total_count</code> по подзадачам. Иначе при массовом изменении подзадач придётся обновлять родителя в транзакции.</div>
+      </div>
+    </section>
+
+    <!-- ===== EVENT ===== -->
+    <section class="doc-section" id="event">
+      <h2>События</h2>
+      <p class="lead">Единая сущность для задач в календаре, встреч и напоминаний. Тип определяет набор полей: задача имеет статус, встреча — место, напоминание — повтор.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Event</strong><code>^SPACE(spaceId,"events",eventId)</code>
+          <span class="pill">календарь</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>type</code></td><td class="type">enum</td><td class="req">✓</td><td><code>task</code> | <code>meeting</code> | <code>reminder</code></td></tr>
+            <tr><td><code>title</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>start</code></td><td class="type">datetime</td><td class="req">✓</td><td>UTC</td></tr>
+            <tr><td><code>end</code></td><td class="type">datetime</td><td></td><td>UTC, опционально</td></tr>
+            <tr><td><code>allDay</code></td><td class="type">boolean</td><td class="req">✓</td><td>Если true — <code>start</code>/<code>end</code> — даты без времени</td></tr>
+            <tr><td><code>place</code></td><td class="type">string</td><td></td><td>Для встреч</td></tr>
+            <tr><td><code>assigneeId</code></td><td class="type">string</td><td></td><td>Для задач — назначенный</td></tr>
+            <tr><td><code>status</code></td><td class="type">enum</td><td></td><td>Для задач: <code>todo</code> | <code>progress</code> | <code>blocked</code> | <code>done</code></td></tr>
+            <tr><td><code>taskId</code></td><td class="type">string</td><td></td><td>Связь с задачей, если это её событие</td></tr>
+            <tr><td><code>recurrence</code></td><td class="type">object</td><td></td><td>Для напоминаний: <code>{freq, interval, until}</code></td></tr>
+            <tr><td><code>remindBefore</code></td><td class="type">int</td><td></td><td>За сколько минут напомнить</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>deletedAt</code></td><td class="type">datetime</td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout" data-kind="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>Повторяющиеся события</strong> не материализуются в отдельные записи. В API при запросе диапазона бэкенд раскрывает <code>recurrence</code> в конкретные даты на лету (§4.6.3 — «прогноз — вычисляемый слой»). Это экономит место и упрощает правки.</div>
+      </div>
+    </section>
+
+    <!-- ===== CHAT ===== -->
+    <section class="doc-section" id="chat">
+      <h2>Чат</h2>
+      <p class="lead">Канал = пространство. Плюс личные диалоги (1:1). Сообщение может быть привязано к задаче — это комментарий.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Channel</strong><code>^SPACE(spaceId,"channels",channelId)</code>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>kind</code></td><td class="type">enum</td><td class="req">✓</td><td><code>public</code> | <code>private</code> | <code>dm</code></td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td>«семья», «бюджет», «дети»</td></tr>
+            <tr><td><code>members</code></td><td class="type">array</td><td></td><td>Для private/dm — список userId</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Message</strong><code>^SPACE(spaceId,"channels",channelId,"msgs",msgId)</code>
+          <span class="pill">потоковое</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>authorId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>body</code></td><td class="type">markdown</td><td class="req">✓</td><td>Ограничение по длине — 4000 символов</td></tr>
+            <tr><td><code>taskId</code></td><td class="type">string</td><td></td><td>Если это комментарий к задаче</td></tr>
+            <tr><td><code>attachments</code></td><td class="type">array</td><td></td><td>Список fileId</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>editedAt</code></td><td class="type">datetime</td><td></td><td></td></tr>
+            <tr><td><code>deletedAt</code></td><td class="type">datetime</td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== FILE ===== -->
+    <section class="doc-section" id="file">
+      <h2>Файлы</h2>
+      <p class="lead">Метаданные в MUMPS, бинарники — в ФС/S3. Лимит размера и список типов — на уровне пространства.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>File</strong><code>^SPACE(spaceId,"files",fileId)</code>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td>Оригинальное имя</td></tr>
+            <tr><td><code>size</code></td><td class="type">int</td><td class="req">✓</td><td>Байты</td></tr>
+            <tr><td><code>mime</code></td><td class="type">string</td><td class="req">✓</td><td>MIME-тип</td></tr>
+            <tr><td><code>storageKey</code></td><td class="type">string</td><td class="req">✓</td><td>Путь в ФС или S3</td></tr>
+            <tr><td><code>uploadedBy</code></td><td class="type">string</td><td class="req">✓</td><td>userId</td></tr>
+            <tr><td><code>attachedTo</code></td><td class="type">object</td><td></td><td><code>{type, id}</code> — task/note/message</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== ACCOUNT, CATEGORY, TXN ===== -->
+    <section class="doc-section" id="account">
+      <h2>Счета, категории, транзакции</h2>
+      <p class="lead">Основа финансов. Баланс счёта — денормализация для быстрого отображения, пересчитывается из транзакций в транзакции MUMPS.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Account</strong><code>^SPACE(spaceId,"finance","accounts",accId)</code>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td>«Карта Мир», «Наличные»</td></tr>
+            <tr><td><code>kind</code></td><td class="type">enum</td><td class="req">✓</td><td><code>cash</code> | <code>card</code> | <code>savings</code> | <code>deposit</code></td></tr>
+            <tr><td><code>currency</code></td><td class="type">string</td><td class="req">✓</td><td>ISO 4217</td></tr>
+            <tr><td><code>balance</code></td><td class="type">int</td><td class="req">✓</td><td>В копейках</td></tr>
+            <tr><td><code>includeInTotal</code></td><td class="type">boolean</td><td class="req">✓</td><td>Учитывать в общем балансе</td></tr>
+            <tr><td><code>isArchived</code></td><td class="type">boolean</td><td class="req">✓</td><td>Не удаляем, а архивируем</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Category</strong><code>^SPACE(spaceId,"finance","categories",catId)</code>
+          <span class="pill">дерево</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>parentId</code></td><td class="type">string</td><td></td><td>Родитель, null — корень</td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>direction</code></td><td class="type">enum</td><td class="req">✓</td><td><code>income</code> | <code>expense</code></td></tr>
+            <tr><td><code>color</code></td><td class="type">string</td><td></td><td>HEX</td></tr>
+            <tr><td><code>icon</code></td><td class="type">string</td><td></td><td>Имя иконки</td></tr>
+            <tr><td><code>isArchived</code></td><td class="type">boolean</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Transaction</strong><code>^SPACE(spaceId,"finance","txn",txnId)</code>
+          <span class="pill">журнал</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>direction</code></td><td class="type">enum</td><td class="req">✓</td><td><code>income</code> | <code>expense</code> | <code>transfer</code></td></tr>
+            <tr><td><code>amount</code></td><td class="type">int</td><td class="req">✓</td><td>Копейки, всегда положительное</td></tr>
+            <tr><td><code>currency</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>date</code></td><td class="type">date</td><td class="req">✓</td><td>Когда совершена</td></tr>
+            <tr><td><code>accountId</code></td><td class="type">string</td><td class="req">✓</td><td>Источник</td></tr>
+            <tr><td><code>toAccountId</code></td><td class="type">string</td><td></td><td>Для transfer — получатель</td></tr>
+            <tr><td><code>categoryId</code></td><td class="type">string</td><td></td><td>null — без категории</td></tr>
+            <tr><td><code>comment</code></td><td class="type">string</td><td></td><td></td></tr>
+            <tr><td><code>authorId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>recurringId</code></td><td class="type">string</td><td></td><td>Если создана из Recurring</td></tr>
+            <tr><td><code>loanId</code></td><td class="type">string</td><td></td><td>Если платёж по кредиту</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>deletedAt</code></td><td class="type">datetime</td><td></td><td>Soft-delete</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout" data-kind="danger">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>Баланс и транзакция — атомарно.</strong> Создание/удаление транзакции обновляет <code>account.balance</code> в той же транзакции MUMPS. Для transfer: <code>−amount</code> у <code>accountId</code>, <code>+amount</code> у <code>toAccountId</code>. Если это не сделать атомарно, баланс разъедется при сбое.</div>
+      </div>
+    </section>
+
+    <!-- ===== RECURRING ===== -->
+    <section class="doc-section" id="recurring">
+      <h2>Периодические операции</h2>
+      <p class="lead">Единая сущность для запланированных доходов и расходов. Создаёт транзакции по расписанию либо напоминает пользователю.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Recurring</strong><code>^SPACE(spaceId,"finance","recurring",recId)</code>
+          <span class="pill">план</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>title</code></td><td class="type">string</td><td class="req">✓</td><td>«Квартплата», «Зарплата»</td></tr>
+            <tr><td><code>direction</code></td><td class="type">enum</td><td class="req">✓</td><td><code>income</code> | <code>expense</code></td></tr>
+            <tr><td><code>amount</code></td><td class="type">int</td><td class="req">✓</td><td>Копейки</td></tr>
+            <tr><td><code>currency</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>accountId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>categoryId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>schedule</code></td><td class="type">object</td><td class="req">✓</td><td><code>{freq, interval, dayOfMonth?}</code>, freq = <code>monthly</code> | <code>quarterly</code> | <code>yearly</code> | <code>custom</code></td></tr>
+            <tr><td><code>nextDate</code></td><td class="type">date</td><td class="req">✓</td><td>Дата следующей операции</td></tr>
+            <tr><td><code>endDate</code></td><td class="type">date</td><td></td><td>Пусто — бессрочно</td></tr>
+            <tr><td><code>remindBefore</code></td><td class="type">int</td><td></td><td>Дней до напоминания</td></tr>
+            <tr><td><code>autoCreate</code></td><td class="type">boolean</td><td class="req">✓</td><td>Создавать транзакцию автоматически</td></tr>
+            <tr><td><code>loanId</code></td><td class="type">string</td><td></td><td>Если платёж по кредиту</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>deletedAt</code></td><td class="type">datetime</td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout" data-kind="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>Пропущенные операции.</strong> Если <code>autoCreate: true</code> и операция пропущена, создаётся черновик транзакции с <code>draft: true</code> и подсветкой в UI. Пользователь подтверждает или отклоняет. Если <code>autoCreate: false</code> — просто напоминание, транзакция создаётся только после подтверждения.</div>
+      </div>
+
+      <div class="callout" data-kind="warn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><strong>Прогноз баланса — вычисляемый слой.</strong> Recurring не создаёт «фантомных» транзакций в журнале для прогноза. Прогноз читает Recurring и текущие балансы, строит кривую на лету. Это важно для §4.6.3 — иначе журнал забьётся фантомами.</div>
+      </div>
+    </section>
+
+    <!-- ===== LOAN ===== -->
+    <section class="doc-section" id="loan">
+      <h2>Кредиты</h2>
+      <p class="lead">Тело, ставка, срок, тип платежа. Изменение ставки — отдельная сущность, чтобы сохранить историю. Платёж по кредиту — это Recurring с loanId.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Loan</strong><code>^SPACE(spaceId,"finance","loans",loanId)</code>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>name</code></td><td class="type">string</td><td class="req">✓</td><td>«Ипотека»</td></tr>
+            <tr><td><code>bank</code></td><td class="type">string</td><td></td><td>«Сбербанк»</td></tr>
+            <tr><td><code>principal</code></td><td class="type">int</td><td class="req">✓</td><td>Тело кредита, копейки</td></tr>
+            <tr><td><code>rate</code></td><td class="type">decimal</td><td class="req">✓</td><td>Текущая ставка, % годовых</td></tr>
+            <tr><td><code>termMonths</code></td><td class="type">int</td><td class="req">✓</td><td>Срок в месяцах</td></tr>
+            <tr><td><code>startDate</code></td><td class="type">date</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>paymentType</code></td><td class="type">enum</td><td class="req">✓</td><td><code>annuity</code> | <code>differentiated</code></td></tr>
+            <tr><td><code>currentBalance</code></td><td class="type">int</td><td class="req">✓</td><td>Остаток долга, копейки</td></tr>
+            <tr><td><code>nextPaymentDate</code></td><td class="type">date</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>accountId</code></td><td class="type">string</td><td class="req">✓</td><td>Счёт списания</td></tr>
+            <tr><td><code>currency</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>LoanRateChange</strong><code>^SPACE(spaceId,"finance","loans",loanId,"rate_changes",changeId)</code>
+          <span class="pill">история</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>newRate</code></td><td class="type">decimal</td><td class="req">✓</td><td>Новая ставка</td></tr>
+            <tr><td><code>effectiveDate</code></td><td class="type">date</td><td class="req">✓</td><td>С какой даты</td></tr>
+            <tr><td><code>recalculatedPayment</code></td><td class="type">int</td><td></td><td>Пересчитанный платёж</td></tr>
+            <tr><td><code>recalculatedOverpayment</code></td><td class="type">int</td><td></td><td>Пересчитанная переплата</td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>EarlyPayment</strong><code>^SPACE(spaceId,"finance","loans",loanId,"early_payments",payId)</code>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>amount</code></td><td class="type">int</td><td class="req">✓</td><td>Копейки</td></tr>
+            <tr><td><code>date</code></td><td class="type">date</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>mode</code></td><td class="type">enum</td><td class="req">✓</td><td><code>reduce-term</code> | <code>reduce-payment</code></td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== BUDGET ===== -->
+    <section class="doc-section" id="budget">
+      <h2>Бюджет</h2>
+      <p class="lead">План по категории на период. Если для категории нет явного плана, он вычисляется из суммы Recurring — это гибридный подход, см. §4.6.4.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Budget</strong><code>^SPACE(spaceId,"finance","budgets",budgetId)</code>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>categoryId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>period</code></td><td class="type">string</td><td class="req">✓</td><td><code>YYYY-MM</code> для месяца, <code>YYYY-QN</code> для квартала, <code>YYYY</code> для года</td></tr>
+            <tr><td><code>amount</code></td><td class="type">int</td><td class="req">✓</td><td>План, копейки</td></tr>
+            <tr><td><code>currency</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>createdAt</code></td><td class="type">datetime</td><td class="req">✓</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout" data-kind="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>План vs факт.</strong> Факт — сумма транзакций за период по категории и направлению. План — <code>Budget</code>, если есть; иначе — сумма <code>Recurring</code> с <code>nextDate</code> в периоде. Переводы исключаются из отчёта — они не доход и не расход.</div>
+      </div>
+    </section>
+
+    <!-- ===== AUDIT ===== -->
+    <section class="doc-section" id="audit">
+      <h2>Аудит</h2>
+      <p class="lead">Отдельный глобал для изменений финансов, задач и настроек. Не смешивается с основными данными, чтобы не замедлять чтение.</p>
+
+      <div class="doc-entity">
+        <div class="doc-entity-head">
+          <strong>Audit</strong><code>^SPACE(spaceId,"audit",timestamp,counter)</code>
+          <span class="pill">лог</span>
+        </div>
+        <table>
+          <thead><tr><th>Поле</th><th>Тип</th><th>Обяз.</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>ts</code></td><td class="type">datetime</td><td class="req">✓</td><td>UTC ISO 8601</td></tr>
+            <tr><td><code>actorId</code></td><td class="type">string</td><td class="req">✓</td><td>Кто изменил</td></tr>
+            <tr><td><code>entity</code></td><td class="type">string</td><td class="req">✓</td><td><code>task</code> | <code>txn</code> | <code>loan</code> | <code>member</code> | <code>settings</code></td></tr>
+            <tr><td><code>entityId</code></td><td class="type">string</td><td class="req">✓</td><td></td></tr>
+            <tr><td><code>action</code></td><td class="type">enum</td><td class="req">✓</td><td><code>create</code> | <code>update</code> | <code>delete</code></td></tr>
+            <tr><td><code>diff</code></td><td class="type">object</td><td></td><td><code>{field: {old, new}}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== ГЛОБАЛЫ ===== -->
+    <section class="doc-section" id="globals">
+      <h2>Схема глобалов MUMPS</h2>
+      <p class="lead">Физическая структура. Каждый глобал — дерево с ключами-строками. Данные пространства — под <code>^SPACE(spaceId)</code>. Пользователи — отдельный глобал <code>^USER</code>, чтобы авторизация не зависела от пространства.</p>
+
+      <h3>Верхний уровень</h3>
+      <div class="doc-global"><span class="key">^USER</span>(userId)                       <span class="cmt"># профиль: name, email, passwordHash, createdAt</span>
+<span class="key">^USER</span>(userId,"sessions",sessionId)      <span class="cmt"># активные сессии (если сессии, не JWT)</span>
+<span class="key">^USER_BY_EMAIL</span>(email,userId)           <span class="cmt"># индекс для логина</span>
+<span class="key">^SPACE_BY_USER</span>(userId,spaceId)          <span class="cmt"># обратный индекс: в каких пространствах состоит</span>
+<span class="key">^INVITE</span>(token)                        <span class="cmt"># приглашения, чтобы принимать без знания spaceId</span>
+
+<span class="key">^SPACE</span>(spaceId)                      <span class="cmt"># корень пространства</span>
+  <span class="key">"meta"</span>                            <span class="cmt"># name, kind, ownerId, currency, timezone, createdAt</span>
+  <span class="key">"members"</span>(userId)                  <span class="cmt"># role, joinedAt, invitedBy</span>
+  <span class="key">"projects"</span>(projectId)               <span class="cmt"># name, parentId, color</span>
+  <span class="key">"tasks"</span>(taskId)                     <span class="cmt"># title, status, assigneeId, dueDate…</span>
+  <span class="key">"notes"</span>(noteId)                     <span class="cmt"># title, body, taskId…</span>
+  <span class="key">"events"</span>(eventId)                   <span class="cmt"># type, start, end, recurrence…</span>
+  <span class="key">"channels"</span>(channelId)               <span class="cmt"># kind, name, members</span>
+    <span class="key">"msgs"</span>(msgId)                     <span class="cmt"># authorId, body, taskId, attachments</span>
+  <span class="key">"files"</span>(fileId)                     <span class="cmt"># name, size, mime, storageKey</span>
+  <span class="key">"finance"</span>                          <span class="cmt"># финансы пространства</span>
+    <span class="key">"accounts"</span>(accId)                 <span class="cmt"># name, kind, balance, currency</span>
+    <span class="key">"categories"</span>(catId)               <span class="cmt"># name, parentId, direction</span>
+    <span class="key">"txn"</span>(txnId)                       <span class="cmt"># direction, amount, accountId…</span>
+    <span class="key">"recurring"</span>(recId)                <span class="cmt"># direction, amount, schedule, nextDate</span>
+    <span class="key">"loans"</span>(loanId)                   <span class="cmt"># principal, rate, termMonths…</span>
+      <span class="key">"rate_changes"</span>(changeId)        <span class="cmt"># newRate, effectiveDate</span>
+      <span class="key">"early_payments"</span>(payId)         <span class="cmt"># amount, date, mode</span>
+    <span class="key">"budgets"</span>(budgetId)               <span class="cmt"># categoryId, period, amount</span>
+  <span class="key">"audit"</span>(ts,counter)                 <span class="cmt"># actorId, entity, action, diff</span></div>
+
+      <h3>Индексы для частых запросов</h3>
+      <div class="doc-global"><span class="cmt"># Задачи по назначенному (быстрый фильтр «Мои»)</span>
+<span class="key">^SPACE</span>(spaceId,"idx","tasks_by_assignee",userId,taskId) = <span class="val">""</span>
+
+<span class="cmt"># Задачи по сроку (для календаря месяца)</span>
+<span class="key">^SPACE</span>(spaceId,"idx","tasks_by_due",date,taskId) = <span class="val">""</span>
+
+<span class="cmt"># Транзакции по счёту и дате (для отчётов)</span>
+<span class="key">^SPACE</span>(spaceId,"idx","txn_by_account",accId,date,txnId) = <span class="val">""</span>
+
+<span class="cmt"># Транзакции по категории и периоду (для «План vs факт»)</span>
+<span class="key">^SPACE</span>(spaceId,"idx","txn_by_cat",catId,date,txnId) = <span class="val">""</span>
+
+<span class="cmt"># Recurring по nextDate (для прогноза и напоминаний)</span>
+<span class="key">^SPACE</span>(spaceId,"idx","recurring_by_next",nextDate,recId) = <span class="val">""</span>
+
+<span class="cmt"># События по дате (для календаря)</span>
+<span class="key">^SPACE</span>(spaceId,"idx","events_by_start",date,eventId) = <span class="val">""</span>
+
+<span class="cmt"># Сообщения канала в обратном порядке (последние сверху)</span>
+<span class="key">^SPACE</span>(spaceId,"channels",chId,"idx","msgs_by_time",-ts,msgId) = <span class="val">""</span></div>
+
+      <h3>Пример записи пространства</h3>
+      <div class="doc-global"><span class="key">^SPACE</span>("sp_8f3a2b") = <span class="val">""</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","meta","name") = <span class="val">"Семья"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","meta","kind") = <span class="val">"family"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","meta","ownerId") = <span class="val">"u_ivan"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","meta","currency") = <span class="val">"RUB"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","meta","timezone") = <span class="val">"Europe/Moscow"</span>
+
+<span class="key">^SPACE</span>("sp_8f3a2b","members","u_ivan","role") = <span class="val">"owner"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","members","u_anna","role") = <span class="val">"adult"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","members","u_masha","role") = <span class="val">"child"</span>
+
+<span class="key">^SPACE</span>("sp_8f3a2b","tasks","t_001","title") = <span class="val">"Оплатить квартплату"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","tasks","t_001","status") = <span class="val">"todo"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","tasks","t_001","assigneeId") = <span class="val">"u_ivan"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","tasks","t_001","dueDate") = <span class="val">"2025-03-28"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","tasks","t_001","createdAt") = <span class="val">"2025-03-20T10:00:00Z"</span>
+
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","accounts","acc_card","name") = <span class="val">"Карта Мир"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","accounts","acc_card","balance") = <span class="val">"9430000"</span>
+<span class="cmt">; 94 300 ₽ = 9 430 000 копеек</span>
+
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","recurring","rec_rent","title") = <span class="val">"Квартплата"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","recurring","rec_rent","direction") = <span class="val">"expense"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","recurring","rec_rent","amount") = <span class="val">"684000"</span>
+<span class="cmt">; 6 840 ₽ = 684 000 копеек</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","recurring","rec_rent","nextDate") = <span class="val">"2025-04-20"</span>
+<span class="key">^SPACE</span>("sp_8f3a2b","finance","recurring","rec_rent","autoCreate") = <span class="val">"1"</span></div>
+
+      <h3>Как хранятся деньги</h3>
+      <div class="callout" data-kind="warn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><strong>Только целые копейки.</strong> Никаких float. В MUMPS числа хранятся как строки, но арифметика — в целых. <code>amount</code> = 684000 для 6 840 ₽. Валюта — отдельно, в <code>currency</code>. Это единственный способ не разъехаться на аннуитете за 111 платежей (см. открытый вопрос №4 в концепте).</div>
+      </div>
+
+      <h3>Транзакционность</h3>
+      <div class="doc-global"><span class="cmt">; MUMPS: создание транзакции + обновление баланса — атомарно</span>
+TSTART
+  <span class="cmt">; 1. пишем транзакцию</span>
+  SET <span class="key">^SPACE</span>(sp,"finance","txn",txnId,"amount") = 234000
+  SET <span class="key">^SPACE</span>(sp,"finance","txn",txnId,"accountId") = accId
+  SET <span class="key">^SPACE</span>(sp,"finance","txn",txnId,"direction") = "expense"
+  <span class="cmt">; 2. обновляем баланс счёта</span>
+  SET <span class="key">^SPACE</span>(sp,"finance","accounts",accId,"balance") =
+        <span class="key">^SPACE</span>(sp,"finance","accounts",accId,"balance") - 234000
+  <span class="cmt">; 3. пишем аудит</span>
+  SET <span class="key">^SPACE</span>(sp,"audit",$ZDT($H,3),counter,"entity") = "txn"
+  SET <span class="key">^SPACE</span>(sp,"audit",$ZDT($H,3),counter,"actorId") = userId
+TCOMMIT</div>
+
+      <h3>Ключи и ID</h3>
+      <ul style="font-size:.88rem; line-height:1.7">
+        <li>ID — строки с префиксом: <code>sp_</code> (space), <code>u_</code> (user), <code>t_</code> (task), <code>n_</code> (note), <code>acc_</code> (account), <code>txn_</code> (transaction), <code>rec_</code> (recurring), <code>loan_</code> (loan). Это упрощает чтение логов и не зависит от счётчика.</li>
+        <li>Генерация — UUID v4, обрезанный до 12 символов, либо отдельный счётчик <code>^COUNTER("task")</code>. Для MVP — UUID, чтобы не блокировать на счётчике.</li>
+        <li>Даты — строки <code>"2025-03-28"</code>, время — <code>"2025-03-28T10:00:00Z"</code>. Строковое сравнение работает как временно́е, если формат фиксирован (ISO 8601).</li>
+        <li>Сортировка по времени — через <code>SET ... "idx","by_time",-ts,id</code>, где <code>ts</code> — unix timestamp. Обратный порядок — отрицательное число.</li>
+      </ul>
+    </section>
+
+    <!-- ===== API ===== -->
+    <section class="doc-section" id="api">
+      <h2>API-эндпоинты</h2>
+      <p class="lead">Тонкий слой поверх глобалов. REST, JSON, изоляция по <code>spaceId</code> на каждом эндпоинте. Аутентификация — сессии или JWT (открытый вопрос №1 в концепте).</p>
+
+      <div class="doc-global"><span class="cmt"># Аутентификация</span>
+POST   /auth/login
+POST   /auth/logout
+GET    /auth/me
+
+<span class="cmt"># Пространства</span>
+GET    /spaces
+POST   /spaces
+GET    /spaces/:id
+PATCH  /spaces/:id
+DELETE /spaces/:id
+POST   /spaces/:id/archive
+POST   /spaces/:id/transfer-ownership
+
+<span class="cmt"># Участники</span>
+GET    /spaces/:id/members
+PATCH  /spaces/:id/members/:userId
+DELETE /spaces/:id/members/:userId
+POST   /spaces/:id/invites
+DELETE /spaces/:id/invites/:token
+POST   /invites/:token/accept
+
+<span class="cmt"># Задачи</span>
+GET    /spaces/:id/tasks?status=&assignee=&project=&due=
+POST   /spaces/:id/tasks
+GET    /spaces/:id/tasks/:taskId
+PATCH  /spaces/:id/tasks/:taskId
+DELETE /spaces/:id/tasks/:taskId
+POST   /spaces/:id/tasks/:taskId/subtasks
+
+<span class="cmt"># Заметки</span>
+GET    /spaces/:id/notes?project=&task=
+POST   /spaces/:id/notes
+GET    /spaces/:id/notes/:noteId
+PATCH  /spaces/:id/notes/:noteId
+DELETE /spaces/:id/notes/:noteId
+
+<span class="cmt"># События</span>
+GET    /spaces/:id/events?from=&to=&type=
+POST   /spaces/:id/events
+PATCH  /spaces/:id/events/:eventId
+DELETE /spaces/:id/events/:eventId
+
+<span class="cmt"># Чат</span>
+GET    /spaces/:id/channels
+POST   /spaces/:id/channels
+GET    /spaces/:id/channels/:channelId/messages?before=&limit=
+POST   /spaces/:id/channels/:channelId/messages
+PATCH  /spaces/:id/channels/:channelId/messages/:msgId
+DELETE /spaces/:id/channels/:channelId/messages/:msgId
+GET    /spaces/:id/channels/:channelId/stream   <span class="cmt"># SSE, опционально</span>
+
+<span class="cmt"># Файлы</span>
+POST   /spaces/:id/files
+GET    /spaces/:id/files/:fileId
+DELETE /spaces/:id/files/:fileId
+
+<span class="cmt"># Финансы: счета, транзакции</span>
+GET    /spaces/:id/accounts
+POST   /spaces/:id/accounts
+PATCH  /spaces/:id/accounts/:accId
+GET    /spaces/:id/accounts/:accId/txns?from=&to=&category=
+POST   /spaces/:id/txns
+PATCH  /spaces/:id/txns/:txnId
+DELETE /spaces/:id/txns/:txnId
+
+<span class="cmt"># Финансы: категории и план</span>
+GET    /spaces/:id/categories
+POST   /spaces/:id/categories
+PATCH  /spaces/:id/categories/:catId
+GET    /spaces/:id/plan-vs-fact?period=
+GET    /spaces/:id/budgets?period=
+POST   /spaces/:id/budgets
+
+<span class="cmt"># Финансы: периодические и прогноз</span>
+GET    /spaces/:id/recurring
+POST   /spaces/:id/recurring
+PATCH  /spaces/:id/recurring/:recId
+DELETE /spaces/:id/recurring/:recId
+GET    /spaces/:id/forecast?days=30
+
+<span class="cmt"># Финансы: кредиты</span>
+GET    /spaces/:id/loans
+POST   /spaces/:id/loans
+GET    /spaces/:id/loans/:loanId
+PATCH  /spaces/:id/loans/:loanId
+POST   /spaces/:id/loans/:loanId/refinance
+POST   /spaces/:id/loans/:loanId/early-payment
+GET    /spaces/:id/loans/:loanId/schedule
+
+<span class="cmt"># Экспорт</span>
+GET    /spaces/:id/export/tasks
+GET    /spaces/:id/export/txns
+GET    /spaces/:id/export/all</div>
+
+      <h3>Формат ответа</h3>
+      <div class="doc-global">{
+  "id": "t_001",
+  "projectId": "p_house",
+  "parentTaskId": null,
+  "title": "Оплатить квартплату",
+  "description": "Квитанция за март",
+  "status": "todo",
+  "priority": "urgent",
+  "assigneeId": "u_ivan",
+  "authorId": "u_anna",
+  "dueDate": "2025-03-28",
+  "tags": ["быт", "оплата"],
+  "createdAt": "2025-03-20T10:00:00Z",
+  "updatedAt": "2025-03-27T18:30:00Z",
+  "completedAt": null,
+  "deletedAt": null
+}</div>
+
+      <h3>Ошибки</h3>
+      <div class="doc-global">{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Роль child не может редактировать финансы",
+    "field": null
+  }
+}</div>
+
+      <div class="callout" data-kind="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>Проверка роли на каждом эндпоинте.</strong> Если в URL есть <code>:id</code> пространства — первым делом проверяется, что пользователь в нём состоит и его роль допускает действие. Это не middleware «после», а первая проверка в обработчике, иначе получится IDOR.</div>
+      </div>
+    </section>
+
+    <!-- ===== ЦЕЛОСТНОСТЬ ===== -->
+    <section class="doc-section" id="integrity">
+      <h2>Правила целостности</h2>
+      <p class="lead">Что должно быть гарантировано на уровне бэкенда, а не UI. Каждое правило — либо транзакция MUMPS, либо проверка в обработчике.</p>
+
+      <h3>Обязательные проверки</h3>
+      <ul style="font-size:.88rem; line-height:1.7">
+        <li><strong>Пространство.</strong> Все сущности в запросе принадлежат одному <code>spaceId</code>. Кросс-пространственные связи запрещены (кроме агрегированного календаря по явному списку).</li>
+        <li><strong>Роль.</strong> Действие разрешено ролью. <code>child</code> не может редактировать финансы, <code>adult</code> не может удалить пространство, только <code>owner</code> может менять владельца.</li>
+        <li><strong>Деньги.</strong> <code>amount</code> — целое > 0. <code>balance</code> пересчитывается в той же транзакции, что и <code>txn</code>.</li>
+        <li><strong>Переводы.</strong> <code>direction=transfer</code> требует <code>toAccountId</code>, и он ≠ <code>accountId</code>. Оба счёта существуют и в одном пространстве.</li>
+        <li><strong>Recurring → Loan.</strong> Если <code>loanId</code> задан, <code>direction</code> должен быть <code>expense</code>, а <code>accountId</code> совпадать с <code>loan.accountId</code>.</li>
+        <li><strong>Категории.</strong> <code>categoryId</code> существует и его <code>direction</code> совпадает с <code>txn.direction</code>. Для перевода категория не обязательна.</li>
+        <li><strong>События.</strong> <code>end ≥ start</code>. Для <code>recurrence</code> — <code>until ≥ start</code>.</li>
+        <li><strong>Сообщения.</strong> Если <code>taskId</code> задан — задача существует в том же пространстве.</li>
+        <li><strong>Файлы.</strong> Размер ≤ лимита пространства, MIME в белом списке.</li>
+        <li><strong>Soft-delete.</strong> Удалённые сущности не возвращаются в API по умолчанию. Явный запрос <code>?includeDeleted=true</code> — только для владельца и только для аудита.</li>
+      </ul>
+
+      <h3>Что делать при удалении</h3>
+      <ul style="font-size:.88rem; line-height:1.7">
+        <li><strong>Задача.</strong> Soft-delete. Подзадачи остаются, но при запросе родителя отдаются как «сироты». Файлы и заметки, привязанные к задаче, остаются.</li>
+        <li><strong>Заметка.</strong> Soft-delete. Файлы остаются, ссылки в задачах — нет (заметка не упоминается в задаче, только задача в заметке).</li>
+        <li><strong>Транзакция.</strong> Soft-delete + пересчёт баланса счёта (обратная операция). Перевод — две обратные операции.</li>
+        <li><strong>Счёт.</strong> Архивация (<code>isArchived: true</code>). Удаление запрещено, если есть транзакции. Архивный счёт не показывается в фильтрах, но его транзакции доступны.</li>
+        <li><strong>Категория.</strong> Архивация. Транзакции с этой категорией остаются. Новые — нельзя.</li>
+        <li><strong>Кредит.</strong> Soft-delete. Связанный <code>Recurring</code> — либо архивируется, либо отвязывается (пользователь выбирает).</li>
+        <li><strong>Участник.</strong> Удаление из <code>members</code>. Сущности, где он был автором/назначенным, остаются. Назначенный → null.</li>
+        <li><strong>Пространство.</strong> Soft-delete на 30 дней, потом hard-delete. До истечения — восстановление владельцем.</li>
+      </ul>
+    </section>
+
+    <!-- ===== ОТКРЫТЫЕ ВОПРОСЫ ===== -->
+    <section class="doc-section" id="questions">
+      <h2>Открытые вопросы</h2>
+      <p class="lead">То, что в концепте (§7) помечено как риски, и что нужно решить до старта разработки бэкенда. Каждый вопрос — с вариантами и рекомендацией.</p>
+
+      <table class="doc-questions">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Вопрос</th>
+            <th>Варианты</th>
+            <th>Рекомендация</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><strong>Аутентификация на MUMPS</strong></td>
+            <td>Сессии (глобал <code>^USER(id,"sessions",sid)</code>) vs JWT</td>
+            <td>Сессии проще: logout = удалить узел, нет проблем с отзывом JWT. JWT удобнее для мобильного, но в MVP мобильного нативного нет — PWA работает с сессией.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><strong>Реальное время чата</strong></td>
+            <td>Polling vs SSE vs WebSocket</td>
+            <td>Polling раз в 3–5 секунд. SSE — если понадобится «печатает…». WebSocket — вне MVP, обосновать в ТЗ.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><strong>Хранилище файлов</strong></td>
+            <td>ФС vs S3</td>
+            <td>ФС на старте (проще, дешевле), S3 — когда перерастёт один сервер. Абстракция <code>storageKey</code> уже есть.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><strong>Точность округлений в кредитах</strong></td>
+            <td>Копейки (int) vs рубли (int) vs decimal</td>
+            <td>Только копейки (int). Округление — «половина вверх» на каждом шаге. Для 111 платежей иначе накопится расхождение в сотни рублей.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><strong>Импорт банковских выписок</strong></td>
+            <td>CSV vs API банка</td>
+            <td>CSV — в Should, API — вне MVP. Ключевая сложность — маппинг категорий, заложить в <code>Budget</code> и <code>Category</code> поле <code>aliases</code>.</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td><strong>Уведомления: email vs push</strong></td>
+            <td>Email (SMTP) vs Push (PWA)</td>
+            <td>Email на старте — проще, работает везде. Push — в Should, через Service Worker.</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td><strong>Мультивалютность</strong></td>
+            <td>Одна валюта в MVP vs сразу несколько</td>
+            <td>Одна на пространство. Поле <code>currency</code> есть в модели, конвертация — вне MVP.</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td><strong>Пропущенные Recurring</strong></td>
+            <td>Черновик транзакции vs автозапись vs пропуск</td>
+            <td>Черновик с <code>draft: true</code> и подсветкой в UI. Пользователь подтверждает или отклоняет. Это компромисс между «не потерять» и «не записать лишнего».</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td><strong>Кредитные карты</strong></td>
+            <td>Отдельный тип <code>Loan</code> vs счёт с отрицательным балансом</td>
+            <td>Счёт с отрицательным балансом. У кредитной карты нет фиксированного срока и аннуитета — это не кредит, а revolving-линия. Не смешивать.</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td><strong>Часовой пояс</strong></td>
+            <td>UTC на бэкенде + TZ пространства vs локальное время</td>
+            <td>UTC в хранении, TZ пространства в отображении и в генерации Recurring. Иначе «выпить таблетку в 20:00» сдвинется при поездке.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout" data-kind="info" style="margin-top:1.5rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div><strong>Что дальше.</strong> Этот документ — основа для ТЗ. Следующий шаг — либо OpenAPI-спека (формализовать все эндпоинты и схемы ответов), либо расширенная схема глобалов с примерами всех типов записей (включая граничные случаи: перевод, досрочное погашение, пропущенный Recurring).</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Mermaid CDN (опционально) -->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "default",
+    themeVariables: {
+      fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif",
+      primaryColor: "#4f46e5",
+      primaryTextColor: "#ffffff",
+      primaryBorderColor: "#4f46e5",
+      lineColor: "#6b7280",
+      secondaryColor: "#f3f4f6",
+      tertiaryColor: "#ffffff",
+    }
+  });
+</script>
+
+<script>
+/* =========================================================
+   Тема
+   ========================================================= */
+const mqlDark = matchMedia("(prefers-color-scheme: dark)");
+const getMode = () => { try { return localStorage.getItem("hb-theme") || "system"; } catch (e) { return "system"; } };
+const saveMode = (m) => { try { localStorage.setItem("hb-theme", m); } catch (e) {} };
+const isDark = (m) => m === "dark" || (m === "system" && mqlDark.matches);
+
+function applyTheme(mode, persist = true) {
+  const dark = isDark(mode);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  document.documentElement.dataset.themeMode = mode;
+  document.getElementById("docThemeLabel").textContent = dark ? "Светлая тема" : "Тёмная тема";
+  if (persist) saveMode(mode);
+}
+
+document.getElementById("docThemeBtn").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.themeMode || "system";
+  applyTheme(isDark(cur) ? "light" : "dark");
+});
+applyTheme(getMode(), false);
+</script>
+</body>
+</html>

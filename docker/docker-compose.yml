@@ -1,0 +1,25 @@
+# Удобный запуск минимального образа YottaDB (MUMPS + Web Server).
+#
+#   docker compose up --build
+#
+# Порт веб-сервера пробрасывается наружу, каталоги рутин и БД монтируются с хоста:
+#   ./data -> /data  (файлы БД: yottadb.dat, yottadb.gld)
+#   ./rou  -> /rou   (ваши .m-рутины)
+services:
+  yottadb:
+    build:
+      context: .
+      args:
+        # Можно переопределить версию YottaDB
+        YDB_VERSION: r2.06
+    image: yottadb-mumps-web:latest
+    container_name: yottadb-mumps-web
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./data:/data
+      - ./rou:/rou
+    environment:
+      # Порт веб-сервера (должен совпадать с проброшенным выше)
+      YDB_WEB_PORT: "9080"
+    restart: unless-stopped

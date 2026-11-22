@@ -1,0 +1,36 @@
+.due-date {
+    white-space: nowrap;
+    font-size: inherit;
+}
+
+.due-date__hint {
+    font-size: .75em;
+    opacity: .85;
+}
+
+.due-date--empty {
+    color: var(--bs-secondary-color);
+}
+
+.due-date--normal {
+    color: var(--bs-body-color);
+}
+
+.due-date--done {
+    color: var(--bs-secondary-color);
+    text-decoration: line-through;
+}
+
+.due-date--soon {
+    color: var(--bs-warning);
+}
+
+.due-date--today {
+    color: var(--bs-warning);
+    font-weight: 700;
+}
+
+.due-date--overdue {
+    color: var(--bs-danger);
+    font-weight: 600;
+}

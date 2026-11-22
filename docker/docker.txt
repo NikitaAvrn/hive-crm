@@ -1,0 +1,14 @@
+build
+    docker build --platform linux/amd64 -t yottadb-mumps-web .
+
+cli (--platform linux/amd64 - только под macbook m1...)
+    docker run --rm -it --platform linux/amd64 -v "$PWD/rou:/rou" -v "$PWD/data:/data" --entrypoint yottadb yottadb-mumps-web -direct
+
+cli (уже на запущенном контейнере), ydb - имя запущенного контейнера, вместо -direct можно указать файл с m-кодом для его запуска
+    docker exec -it ydb yottadb -direct
+
+run (--init для борьбы с Zombi процессами)
+    docker run -d --name ydb --platform linux/amd64 -p 9080:9080 -v "$PWD/rou:/rou" -v "$PWD/data:/data" yottadb-mumps-web
+
+run (с параметрами или в теории можно дописать параметы в конце без переопределения entrypoint)
+    docker run -d --name ydb -p 9080:9080 -v "$PWD/rou:/rou" -v "$PWD/data:/data" --platform linux/amd64 --entrypoint sh yottadb-mumps-web -c 'exec yottadb -run start^%ydbwebreq --port 9080 --log 2'

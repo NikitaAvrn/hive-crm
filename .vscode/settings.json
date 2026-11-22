@@ -1,0 +1,8 @@
+{
+    "liveServer.settings.root": "/client",
+    "liveServer.settings.proxy": {
+        "enable": true,
+        "baseUri": "/api",
+        "proxyUri": "http://localhost:9080/hive"
+    }
+}
