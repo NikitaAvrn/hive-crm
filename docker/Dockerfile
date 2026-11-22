@@ -29,6 +29,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ВАЖНО: libicu-dev обязательно уже здесь — ydbinstall.sh проверяет наличие
 # libicuio.so до установки и прерывается без него.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        clang \
         wget \
         ca-certificates \
         file \
